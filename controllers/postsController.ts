@@ -5,11 +5,17 @@ import PostModel from '../models/PostSchema'
 const posts = express.Router()
 
 posts.get('/', async (req, res, next) => {
-    let postsArray = await PostModel.find()
-    if (err) {
-        next(err)
-    }
+    await PostModel.find( (err, foundPosts) => {
+        
+        if (err) {
+            next(err)
+            return
+        }
 
+        res.send(foundPosts)
 
-    
+    })
+     
 })
+
+export default posts

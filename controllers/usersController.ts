@@ -1,105 +1,155 @@
 import express from 'express'
 import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
 import { User } from '../models/UserSchema'
 import UserModel from '../models/UserSchema'
-
+import { secret } from '../server'
+import auth from '../auth/auth'
 
 const users = express.Router()
 
 
 
-users.get('/', async (req, res) => {
-    let [err, usersArray] = await UserModel.find()
-        if(err) {
-            res.send(err)
+/* ROUTES *****************************************/ 
+/* GET ALL USERS IN DB */
+users.get('/', async (req, res, next) => {
+    await UserModel.find( (err, foundUsers) => {
+        if (err) {
+            return next(err)
         }
-
-    res.send(usersArray)
+        res.send(foundUsers)
+    })
 })
 
 
-users.post('/register', async (req, res) => {
-    let user: User = {...req.body}
-    console.log(`User to be Created ${user}`)
+
+/* REGISTER USER */
+users.post('/register', async (req, res, next) => {
+    let userToReg: User = {...req.body}
+    console.log(`User to be Registered ${userToReg}`)
     
     //Error HAndle
 
     //look up if user already exists
-    await UserModel.findOne({userName: user.userName}, null, null, (err, foundUser) => {
-        if (err) {
-            console.log(err)
+    await UserModel.findOne({username: userToReg.username}, null, null, (err, foundUser) => {
+
+        if (err) {  
+            return next(err)
         }
         
         if (foundUser) {
             // Username already exists
-            console.log('A User with that Username already exists')
-            res.sendStatus(401)
+            return next(new Error("User with that username already exists"))      
+        } 
+
+        //Hash password
+        bcrypt.hash(userToReg.password, 11, (err, hash) => {
+            // Store hash in your password DB.
+            if (err) {
+                return next(err)
+            }
+
+            userToReg.password = hash
             
-        } else {
-
-            //Hash password
-            bcrypt.hash(user.password, 11, (err, hash) => {
-                // Store hash in your password DB.
+            //create user in data base and respond with jwt
+            const createdUser = new UserModel(userToReg)
+            createdUser.save((err, doc) => {
                 if (err) {
-                    res.sendStatus(404)
+                    return next(err)
                 }
-                user.password = hash
                 
+                console.log(doc)
+                
+            })
 
-                //create user in data base and respond with jwt
-                const createdUser = new UserModel(user)
-                createdUser.save((err, doc) => {
-                    if (err) {
-                        console.error(err)
-                        res.send(err)
-                    } else {
-                        console.log(doc)
-                    }
-                })
-
-                res.send(`${user.userName} Created`)
-            });
-   
-        }
+            // CREATE TOKEN AND SEND BACK TO FRONT END
+            let tokenInfo = {
+                username: createdUser.username,
+                id: createdUser._id,
+                role: createdUser.role
+            }
+            let token = jwt.sign(tokenInfo, secret, { expiresIn: '1h' })
+            res.send({
+                token: token,
+                user: {
+                    username: createdUser.username,
+                    id: createdUser._id,
+                    role: createdUser.role
+                }            
+            })
+        });   
     })
 })
 
 
-users.delete('/delete', async (req, res) => {
+
+/* DELETE USER WITH JSON BODY RN */
+users.delete('/delete', auth, async (req, res, next) => {
     const user: User = {...req.body}
-    await UserModel.findOneAndDelete({ userName: user.userName }, null, (err, deletedUser) => {
+    console.log(res.locals)
+    await UserModel.findOneAndDelete({ username: user.username }, null, (err, deletedUser) => {
+
         if (err) {
-            console.error(err)
-        } else {
-            res.send(`Deleted this User ${deletedUser}`)
+            console.log(`${err} deleting user`) 
+            return next(err)
         }
+
+        if (deletedUser) {
+            return res.send(`Deleted this User ${deletedUser}`)
+        }
+
+        next(new Error('User not found?'))
+        
     })
 
 })
 
 
-users.post('/login', async (req, res) => {
+
+/* LOGIN USER */
+users.post('/login', async (req, res, next) => {
     const user: User = {...req.body}
 
     //Find Username
-    await UserModel.findOne( {userName: user.userName}, undefined, undefined, (err, userFound) => {
+    await UserModel.findOne( 
+    {username: user.username}, 
+    undefined, undefined,  // this is to make ts happy
+    (err, userFound) => {
 
         if (err) {
-            console.error(err)
-        } else if (userFound) {
+           return next(err)
+        }
+        
+        // If A Username is found Compare passwords
+        if (userFound) {
+
             let hash = userFound.password
             bcrypt.compare(user.password, hash, (err, result) => {
 
                 if (err) {
-                    res.send(err)
+
+                    return next(err)
                 } 
                 
                 if (result) {
-                    res.send(`Logged in ${user}`)
 
-                } else {
-                    res.send('Incorrect Login')
-                }
+                    let tokenInfo = {
+                        username: userFound.username,
+                        id: userFound._id,
+                        role: userFound.role
+                    }
+                    let token = jwt.sign(tokenInfo, secret, { expiresIn: '1h' });
+                    return res.send({
+                        token: token,
+                        user: {
+                            username: userFound.username,
+                            id: userFound._id,
+                            role: userFound.role
+                        }
+                    })
+                } 
+                
+                res.send('Incorrect Login')
 
             });
 
