@@ -18,4 +18,9 @@ posts.get('/', async (req, res, next) => {
      
 })
 
+
+posts.post('/', async (req, res, next) => {
+    
+})
+
 export default posts

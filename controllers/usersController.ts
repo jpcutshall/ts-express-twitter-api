@@ -26,9 +26,12 @@ users.get('/', async (req, res, next) => {
 /* REGISTER USER */
 users.post('/register', async (req, res, next) => {
     let userToReg: User = {...req.body}
-    console.log(`User to be Registered ${userToReg}`)
     
     //Error HAndle
+    if (userToReg.password.length < 6) {
+        return next(new Error('Password To Short'))
+    }
+    
 
     //look up if user already exists
     await UserModel.findOne({username: userToReg.username}, null, null, (err, foundUser) => {
@@ -73,8 +76,7 @@ users.post('/register', async (req, res, next) => {
                 token: token,
                 user: {
                     username: createdUser.username,
-                    id: createdUser._id,
-                    role: createdUser.role
+                    id: createdUser._id
                 }            
             })
         });   
@@ -85,22 +87,45 @@ users.post('/register', async (req, res, next) => {
 
 /* DELETE USER WITH JSON BODY RN */
 users.delete('/delete', auth, async (req, res, next) => {
-    const user: User = {...req.body}
-    console.log(res.locals)
-    await UserModel.findOneAndDelete({ username: user.username }, null, (err, deletedUser) => {
 
-        if (err) {
-            console.log(`${err} deleting user`) 
-            return next(err)
-        }
+    if (res.locals.role === 'ADMIN' && req.body.username != res.locals.username) {
+        await UserModel.findOneAndDelete({ username: req.body.username }, null, (err, deletedUser) => {
 
-        if (deletedUser) {
-            return res.send(`Deleted this User ${deletedUser}`)
-        }
+            if (err) {
+                console.log(`${err} deleting user`) 
+                return next(err)
+            }
 
-        next(new Error('User not found?'))
+            if (deletedUser) {
+                return res.send(`Deleted this User ${deletedUser}`)
+            }
+
+            return next(new Error('User not found?'))
         
-    })
+        })
+    }
+
+    if (req.body.username == res.locals.username) {
+        await UserModel.findOneAndDelete({ username: res.locals.username }, null, (err, deletedUser) => {
+
+            if (err) {
+                console.log(`${err} deleting user`) 
+                return next(err)
+            }
+
+            if (deletedUser) {
+                return res.send(`Deleted this User ${deletedUser}`)
+            }
+
+            return next(new Error('User not found?'))
+        
+        })
+    } 
+
+    if (res.locals.role != 'ADMIN' && res.locals.username != req.body.username) {
+        return next(new Error('User does not have permission'))
+    }
+
 
 })
 
@@ -143,8 +168,7 @@ users.post('/login', async (req, res, next) => {
                         token: token,
                         user: {
                             username: userFound.username,
-                            id: userFound._id,
-                            role: userFound.role
+                            id: userFound._id
                         }
                     })
                 } 

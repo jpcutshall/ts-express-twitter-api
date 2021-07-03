@@ -12,6 +12,7 @@ const auth = (req: any, res: any, next: any) => {
             }
 
             if (decoded) {
+                
                 res.locals = decoded
                 return next()
             }

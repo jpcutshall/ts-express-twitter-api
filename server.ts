@@ -17,7 +17,7 @@ const URI: string = process.env.MONGODBURI as string
 /* MONGO CONNECTION */
 mongoose.connect(URI, {useUnifiedTopology: true, useNewUrlParser: true, useCreateIndex: true})
     .then( (connection) => {
-        console.log(`Connected to MongoDB ${URI}`)
+        console.log(`Connected to MongoDB`)
     })
     .catch( (err) => {
         console.log(err)
