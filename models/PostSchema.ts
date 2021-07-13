@@ -5,16 +5,19 @@ const { Schema } = mongoose
 export interface Post {
     author: mongoose.ObjectId,
     body: string,
-    likes: [mongoose.ObjectId],
-    image?: string,
-    replies: [mongoose.ObjectId]
+    likes?: [mongoose.ObjectId],
+    image?: {data: Buffer, contentType: string},
+    replies?: [mongoose.ObjectId]
 }
 
 const postSchema = new Schema<Post>({
     author: {type: Schema.Types.ObjectId, required: true},
     body: {type: String, required: true},
     likes: [Schema.Types.ObjectId],
-    image: String,
+    image: {
+        data: Buffer,
+        contentType: String
+    },
     replies: [Schema.Types.ObjectId]
 },
 { timestamps: { createdAt: 'created_at' } })
