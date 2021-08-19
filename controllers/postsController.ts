@@ -27,7 +27,7 @@ posts.get('/', async (req, res, next) => {
             next(err)
             return
         }
-
+        console.log('sent Posts')
         res.send(foundPosts)
 
     })
