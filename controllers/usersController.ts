@@ -134,7 +134,7 @@ users.delete('/delete', auth, async (req, res, next) => {
 /* LOGIN USER */
 users.post('/login', async (req, res, next) => {
     const user: User = {...req.body}
-
+    console.log(user)
     //Find Username
     await UserModel.findOne( 
     {username: user.username}, 
@@ -168,7 +168,8 @@ users.post('/login', async (req, res, next) => {
                         token: token,
                         user: {
                             username: userFound.username,
-                            id: userFound._id
+                            id: userFound._id,
+                            role: userFound.role
                         }
                     })
                 } 
